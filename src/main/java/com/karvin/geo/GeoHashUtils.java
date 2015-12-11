@@ -104,13 +104,18 @@ public class GeoHashUtils {
         return sb.reverse().toString();
     }
 
-    public static double[] decode(String geoHash){
+    public static long base10(String base32){
         long hashCode = 0;
-        char[] chars = geoHash.toCharArray();
+        char[] chars = base32.toCharArray();
         for(int i= 0;i<chars.length;i++){
             int index = CHAR_MAP.get(chars[i]);
             hashCode = ((hashCode)<<5) + index;
         }
+        return hashCode;
+    }
+
+    public static double[] decode(String geoHash){
+        long hashCode = base10(geoHash);
         double maxLat = MAX_LAT;
         double minLat = MIN_LAT;
         double maxLng = MAX_LNG;
