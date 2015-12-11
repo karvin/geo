@@ -38,21 +38,26 @@ public class RedisGeoStore implements GeoStore {
 
     public List<GeoObject> getByLocationAndDistance(Location location, long distance, SortEnum sortEnum) {
         String geoHash = GeoHashUtils.encode(location.getLat(),location.getLng());
-        String minHash = GeoHashUtils.buildMinGeoHash(geoHash, GeoHashUtils.getPrecision(distance));
-        String maxHash = GeoHashUtils.buildMaxGeoHash(geoHash, GeoHashUtils.getPrecision(distance));
+        int precision = GeoHashUtils.getPrecision(distance);
+        List<String> neighbours = GeoHashUtils.getNeighbours(geoHash, distance);
         Jedis jedis = this.getJedisPool().getResource();
-        long minScore = GeoHashUtils.base10(minHash);
-        long maxScore = GeoHashUtils.base10(maxHash);
-        Set<String> keys = jedis.zrangeByScore(this.getRedisGeoKey(), minScore, maxScore);
-        String[] keyArray = new String[keys.size()];
-        int i=0;
-        for(String key : keys){
-            keyArray[i++] = key;
+        List<String> list = new ArrayList<String>();
+        for(String neighbour:neighbours) {
+            String minHash = GeoHashUtils.buildMinGeoHash(neighbour, precision);
+            String maxHash = GeoHashUtils.buildMaxGeoHash(neighbour, precision);
+            long minScore = GeoHashUtils.base10(minHash);
+            long maxScore = GeoHashUtils.base10(maxHash);
+            Set<String> keys = jedis.zrangeByScore(this.getRedisGeoKey(), minScore, maxScore);
+            String[] keyArray = new String[keys.size()];
+            int i = 0;
+            for (String key : keys) {
+                keyArray[i++] = key;
+            }
+            list.addAll(jedis.hmget(this.getRedisDataKey(),keyArray));
         }
-        List<String> list = jedis.hmget(this.getRedisDataKey(),keyArray);
         List<GeoObject> geoObjects = new ArrayList<GeoObject>();
-        for(String geoString:list){
-            geoObjects.add(gson.fromJson(geoString,GeoObject.class));
+        for (String geoString : list) {
+            geoObjects.add(gson.fromJson(geoString, GeoObject.class));
         }
         GeoSort sort = new DescGeoSort();
         if(SortEnum.ASC.equals(sortEnum)){
