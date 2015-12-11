@@ -12,15 +12,16 @@ public class MemoryGeoStore implements GeoStore{
     public List<GeoObject> getByLocationAndDistance(Location location,long distance,SortEnum sortEnum){
         String geoHash = GeoHashUtils.encode(location.getLat(), location.getLng());
         int precision = GeoHashUtils.getPrecision(distance);
-
-        String minGeoHash = GeoHashUtils.buildMinGeoHash(geoHash, precision);
-        String maxGeoHash = GeoHashUtils.buildMaxGeoHash(geoHash, precision);
-        Collection<GeoObject> result = collection.subMap(minGeoHash,maxGeoHash).values();
-        GeoSort sort = null;
+        List<String> neighbours = GeoHashUtils.getNeighbours(geoHash, distance);
+        Collection<GeoObject> result = new ArrayList<GeoObject>();
+        for(String hash:neighbours) {
+            String minGeoHash = GeoHashUtils.buildMinGeoHash(hash, precision);
+            String maxGeoHash = GeoHashUtils.buildMaxGeoHash(hash, precision);
+            result.addAll(collection.subMap(minGeoHash, maxGeoHash).values());
+        }
+        GeoSort sort = new AscGeoSort();
         if(SortEnum.DESC.equals(sortEnum)){
             sort = new DescGeoSort();
-        }else{
-            sort = new AscGeoSort();
         }
         return sort.sort(location,result,distance);
     }
@@ -60,9 +61,9 @@ public class MemoryGeoStore implements GeoStore{
         GeoStore store = new MemoryGeoStore();
         Random random = new Random();
         long time = System.nanoTime();
-        for(int i=0;i<2000000;i++){
-            double lat = 39 + random.nextInt(300000000)/10000000.0;
-            double lng = 115 + random.nextInt(300000000)/10000000.0;
+        for(int i=0;i<4000000;i++){
+            double lat = 39 + random.nextInt(500000000)/10000000.0;
+            double lng = 115 + random.nextInt(500000000)/10000000.0;
             Location location = new Location();
             location.setLat(lat);
             location.setLng(lng);
@@ -75,7 +76,7 @@ public class MemoryGeoStore implements GeoStore{
         }
         System.out.println("add 2000000 geo cost:"+(System.nanoTime()-time)+" nano");
         Location location = new Location();
-        location.setLat(40.20);
+        location.setLat(50.20);
         location.setLng(116.60);
         long start = System.nanoTime();
         List<GeoObject> objects = store.getByLocationAndDistance(location,10000,SortEnum.ASC);

@@ -122,7 +122,6 @@ public class GeoHashUtils {
         double minLng = MIN_LNG;
         double lat = (maxLat+minLat)/2;
         double lng = (maxLng+minLng)/2;
-        long lngHash = 0;
         for(int i=PRECISION-1;i>=0;i--){
             int result = (int)(hashCode >> (i*2));
             int latResult = result & 2;
@@ -133,16 +132,13 @@ public class GeoHashUtils {
                 maxLat = lat;
             }
             if(lngResult > 0){
-                lngHash = (lngHash << 1) | 1;
                 minLng = lng;
             }else{
-                lngHash = (lngHash<<1)&0;
                 maxLng = lng;
             }
             lat = (maxLat+minLat)/2;
             lng = (maxLng+minLng)/2;
         }
-        System.out.println("lng hash:"+lngHash);
         return new double[]{lat,lng};
     }
 
@@ -158,8 +154,7 @@ public class GeoHashUtils {
         return s;
     }
 
-    private static double rad(double d)
-    {
+    private static double rad(double d) {
         return d * Math.PI / 180.0;
     }
 
@@ -194,6 +189,60 @@ public class GeoHashUtils {
             sb.append("z");
         }
         return sb.toString();
+    }
+
+    private static int[] getHash(String geoHash){
+        long hashCode = base10(geoHash);
+
+        int latHash = 0;
+        int lngHash = 0;
+        for(int i=PRECISION-1;i>=0;i--){
+            int result = (int)(hashCode >> (i*2));
+            int latResult = result & 2;
+            int lngResult = result & 1;
+            if(latResult > 0){
+                latHash = (latHash<<1)|1;
+            }else{
+                latHash = (latHash<<1)|0;
+            }
+            if(lngResult > 0){
+                lngHash = (lngHash<<1)|1;
+            }else{
+                lngHash = (lngHash<<1)|0;
+            }
+        }
+        return new int[]{latHash,lngHash};
+    }
+
+    private static String appendHash(String hash,int length){
+        if(hash.length()>length){
+            return hash;
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append(hash);
+        for(int i=length - hash.length();i<length;i++){
+            sb.append("0");
+        }
+        return sb.toString();
+    }
+
+    public static List<String> getNeighbours(String geoHash,long distance){
+        int precision = getPrecision(distance);
+        List<String> result = new ArrayList<String>();
+        String hash = geoHash.substring(0,precision);
+        int[] hashes = getHash(hash);
+        int latHash = hashes[0];
+        int lngHash = hashes[1];
+        int[] latArray = new int[]{latHash,latHash-1,latHash+1};
+        int[] lngArray = new int[]{lngHash,lngHash-1,lngHash+1};
+        for(int i=0;i<latArray.length;i++){
+            for(int j=0;j<lngArray.length;j++){
+                String hashCode = base32(latArray[i],lngArray[j]);
+                hashCode = appendHash(hashCode,geoHash.length());
+                result.add(hashCode);
+            }
+        }
+        return result;
     }
 
     public static void main(String[] args){
